@@ -7,10 +7,13 @@ def deck():
         for number in numbers:
             if number == "A":
                 value = 1
-            if number == "J" or number == "Q" or number == "K"
+            if number == "J" or number == "Q" or number == "K":
                 value = 10
             else:
                 value = int(number)
+            deck.append(number, suit, value)
+    return deck
+
 
 
 
