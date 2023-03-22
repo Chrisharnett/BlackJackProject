@@ -4,6 +4,30 @@ import db
 import random
 
 
+def blackJack():
+    pass
+
+
+def bet():
+    pass
+
+
+def ace():
+    pass
+
+
+def stand():
+    pass
+
+
+def hit():
+    pass
+
+
+def dealCards():
+    pass
+
+
 def newDeck():
     suits = ["clubs", "spades", "hearts", "diamonds"]
     numbers = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
