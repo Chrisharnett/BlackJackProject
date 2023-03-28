@@ -3,6 +3,11 @@
 import db
 import random
 
+CLUBS = "\u2663"
+SPADES = "\u2660"
+HEARTS = '\u2661'
+DIAMONDS = '\u2662'
+
 
 def blackJack():
     pass
@@ -29,7 +34,7 @@ def dealCards():
 
 
 def newDeck():
-    suits = ["clubs", "spades", "hearts", "diamonds"]
+    suits = [CLUBS, SPADES, HEARTS, DIAMONDS]
     numbers = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
     deck = []
     for suit in suits:
@@ -49,6 +54,7 @@ def main():
     print("BlackJack Project")
     wallet = db.load_money_from_disk()
     deck = newDeck()
+    print(deck)
 
 
 if __name__ == '__main__':
