@@ -47,7 +47,7 @@ def newDeck():
 
 def main():
     print("BlackJack Project")
-    money = db.load_money_from_disk()
+    wallet = db.load_money_from_disk()
     deck = newDeck()
 
 
