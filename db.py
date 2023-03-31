@@ -8,13 +8,11 @@ def load_money_from_disk():
     try:
         with open(FILENAME) as file:
             money = file.read()
-        if money == 0:
-            money = 100
         return money
     except FileNotFoundError:
-        print("Money file not found. Starting with $100")
+        print("Money file not found. A new file while be created")
     except Exception as e:
-        print("Unknown exception occured. Exiting program.")
+        print("Unknown exception occurred. Exiting program.")
         print(type(e), e)
         sys.exit(1)
 
