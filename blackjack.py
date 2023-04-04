@@ -6,10 +6,37 @@ import time
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
 
-CLUBS = "\u2663"
-SPADES = "\u2660"
-HEARTS = "\u2661"
-DIAMONDS = "\u2662"
+
+def endGame(playerHand, dealerHand, bet, money, winner):
+    playerPoints = handValue(playerHand)
+    dealerPoints = handValue(dealerHand)
+    if handValue(playerHand) > 21:
+        playerPoints = "BUST"
+    if handValue(dealerHand) > 21:
+        dealerPoints = "BUST"
+    print(f"{'YOUR POINTS: ':{'20'}}{playerPoints:{'<10'}}")
+    print(f"{'DEALERS POINTS: ':{'20'}}{dealerPoints:{'<10'}}")
+    time.sleep(1)
+    bet = bet.quantize(Decimal("1.00"), ROUND_HALF_UP)
+    if handValue(dealerHand) < handValue(playerHand) <= 21:
+        winner = "p"
+
+    if winner == "b":
+        money += (bet * Decimal(1.5)).quantize(Decimal("1.00"), ROUND_HALF_UP)
+        print(f"Amazing! You win {bet}")
+    elif winner == "p":
+        print("Congratulations, you win!")
+        money += bet
+    elif winner == 'd':
+        money -= bet
+        print()
+        print("Dealer wins")
+    else:
+        print("Tie! No winner")
+    db.write_cash_money(str(money))
+    print(f"Money: {money}")
+    print()
+    return money
 
 
 def player_bet(money):
@@ -27,48 +54,47 @@ def player_bet(money):
             bet_amount = Decimal(input("Bet Amount: "))
             if bet_amount > money:
                 print("You don't have enough money, try again.")
-                continue
             elif 5 > bet_amount > 1000:
                 raise ValueError
             else:
-                return bet_amount
+                return bet_amount, money
         except ValueError:
             print("Invalid bet. Bets must be between 5 and 1000.")
 
 
 def dealerAce(hand):
     index = -1
-    for count, number in enumerate(hand):
-        if number[0].upper() == "A":
-            index = count - 1
-            if len(hand) < 2 or (17 < handValue(hand) + 11 <= 21):
-                hand[index][2] = "11"
+    if hand.count("A") >= 1:
+        for count, card in enumerate(hand):
+            indices = []
+            if card[0].upper() == "A":
+                indices.append(count - 1)
+            for i in indices[1:]:
+                hand[i][2] = 1
     return hand
 
 
-def playerAce(hand):
-    index = -1
-    for count, card in enumerate(hand):
-        if card[0].upper() == "A":
-            index = count - 1
-            if handValue(hand) > 10:
-                print("This ace is worth 1!")
-                return hand
-            elif handValue(hand) == 10:
-                print("This ace is worth 11")
-            else:
-                while True:
-                    ace_value = input("Nice, an Ace! Would you like it to be worth 1 or 11 points? ")
-                    if ace_value == "11":
-                        hand[index][2] = ace_value
-                        return hand
-                    elif ace_value != "1":
-                        print("The Ace can be worth only 1 or 11.")
-                    else:
-                        return hand
-
+# def playerAce(hand):
+#     for count, card in enumerate(hand):
+#         if card[0].upper() == "A":
+#             index = count - 1
+#             if handValue(hand) <= 10:
+#                 hand[index][2] = "11"
+#     return hand
+#
 
 def handValue(hand):
+    value = 0
+    for card in hand:
+        value += int(card[2])
+    return value
+
+
+def playersHandValue(hand):
+    while handValue(hand) > 21:
+        if '11' in hand:
+            i = hand.index("11")
+            hand[i][2] = "1"
     value = 0
     for card in hand:
         value += int(card[2])
@@ -96,7 +122,7 @@ def dealerTurn(deck, hand, playerHand):
         if (handValue(hand)) > (handValue(playerHand)) and handValue(hand) < 21:
             return "d"
         elif handValue(hand) == 21:
-            print("Dealer gets BlackJack, dealer wins")
+            print("Dealer gets 21!")
             return "d"
         elif handValue(hand) > 21:
             print("Dealer is bust.")
@@ -110,22 +136,12 @@ def playersTurn(deck, hand):
     while play == "hit":
         card = deck.pop()
         hand.append(card)
-        if 'A' in card:
-            playerAce(hand)
         print(f"YOUR CARDS:\n{showHand(hand)}")
-        if handValue(hand) == 21:
+        if playersHandValue(hand) == 21:
             print("21 points!")
             return "p"
-        elif handValue(hand) > 21 and 'A' in hand:
-            index = -1
-            for count, card in enumerate(hand):
-                if 'A' in card:
-                    index = count - 1
-                    hand[index][2] = 1
-            print("Ace is now worth 1.")
-            print(f"YOUR CARDS:\n{showHand(hand)}")
-        elif handValue(hand) > 21:
-            print("Sorry, you're bust!")
+        elif playersHandValue(hand) > 21:
+            print("You're bust!")
             return "d"
         else:
             time.sleep(1)
@@ -138,14 +154,9 @@ def startGame(deck, playerHand, dealerHand):
     for x in range(2):
         card = deck.pop()
         playerHand.append(card)
-        if 'A' in card:
-            print(f"YOUR CARDS:\n{showHand(playerHand)}")
-            if len(playerHand) == 2 and handValue(playerHand) + 10 == 21:
-                card[2] = 11
-                print("BLACKJACK!!")
-                return "b"
-            else:
-                playerAce(playerHand)
+        if len(playerHand) == 2 and playersHandValue(playerHand) == 21:
+            print("BLACKJACK!!")
+            return "b"
         card = deck.pop()
         dealerHand.append(card)
         if 'A' in card:
@@ -153,7 +164,7 @@ def startGame(deck, playerHand, dealerHand):
         if handValue(dealerHand) == 21:
             print(f"DEALER'S CARDS:\n{showHand(dealerHand)}")
             print("Dealer hits Blackjack!")
-            return "d"
+            return "db"
     print()
     print(f"DEALER'S SHOW CARD:\n{showHand(dealerHand[1:])}")
     print(f"YOUR CARDS:\n{showHand(playerHand)}")
@@ -163,13 +174,13 @@ def startGame(deck, playerHand, dealerHand):
 def newDeck():
     print("Shuffling the deck.")
     time.sleep(1)
-    suits = [CLUBS, SPADES, HEARTS, DIAMONDS]
+    suits = ["\u2663", "\u2660", "\u2661", "\u2662"]
     numbers = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
     deck = []
     for suit in suits:
         for number in numbers:
             if number.upper() == "A":
-                value = "1"
+                value = "11"
             elif number == "J" or number == "Q" or number == "K":
                 value = "10"
             else:
@@ -185,49 +196,29 @@ def main():
     money = Decimal(db.load_money_from_disk())
 
     # bet = 0
-    while True:
-        bet = player_bet(money)
+    player_again = 'y'
+    while player_again == 'y':
+        bet, money = player_bet(money)
         if money < 5:
             break
         deck = newDeck()
         playerHand = []
         dealerHand = []
-        # winner variable lets us know the status of the game.
-        # "no" implies the game hasn't finished.
-        # "b" means the player hit blackjack.
-        #  "p" means the player won
-        #  "d means the dealer won
+
         winner = "no"
         while winner == "no":
             winner = startGame(deck, playerHand, dealerHand)
             if winner != "no":
                 break
             winner = playersTurn(deck, playerHand)
-            if winner == "p" or winner == "d":
+            if winner != "no":
                 break
             winner = dealerTurn(deck, dealerHand, playerHand)
-            if winner == "p" or winner == "d":
-                break
-        print()
-        print(f"YOUR POINTS: {handValue(playerHand)}")
-        print(f"DEALER'S POINTS: {handValue(dealerHand)}")
-        if handValue(dealerHand) < handValue(playerHand) <= 21:
-            winner = "p"
-        bet = bet.quantize(Decimal("1.00"), ROUND_HALF_UP)
-        if winner == "b":
-            money += (bet * Decimal(1.5)).quantize(Decimal("1.00"), ROUND_HALF_UP)
-        elif winner == "p":
-            print("Congratulations, you win!")
-            money += bet
-        elif winner == 'd':
-            money -= bet
             print()
-            print("Sorry, You lose")
-        else:
-            print("Tie! No winner")
-        db.write_cash_money(str(money))
-        print(f"Money: {money}")
-        print()
+            time.sleep(2)
+
+            money = endGame(playerHand, dealerHand, bet, money, winner)
+
         play_again = input("Play again(y/n):  ")
         if play_again.lower() != 'y':
             break
