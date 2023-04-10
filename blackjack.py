@@ -8,38 +8,41 @@ from decimal import ROUND_HALF_UP
 
 
 def endGame(playerHand, dealerHand, bet, money, winner):
+    print()
+    print("Results")
+    printTable(playerHand, dealerHand)
     printScore(playerHand, dealerHand)
     time.sleep(1)
     bet = bet.quantize(Decimal("1.00"), ROUND_HALF_UP)
     if winner == 'b':
-        money += (bet * Decimal(1.5)).quantize(Decimal("1.00"), ROUND_HALF_UP)
+        bet = (bet * Decimal(1.5)).quantize(Decimal("1.00"), ROUND_HALF_UP)
+        money += bet
         print("BlackJack!")
         print(f"Amazing! You win {bet}")
-    elif winner == 'p' or dealersHandValue(dealerHand) < playersHandValue(playerHand):
+    elif winner == 'd':
+        money -= bet
+        if handValue(dealerHand) == 21:
+            print("Dealer BlackJack!")
+        print("Sorry. You Lose")
+    elif winner == 't':
+        print("Tie! No winner")
+    elif winner == 'p':
         print("Congratulations, you win!")
         money += bet
-    elif winner == 'd' or dealersHandValue(dealerHand) > playersHandValue(playerHand):
-        money -= bet
-        print()
-        print("Dealer wins")
-    elif winner == 't' or dealersHandValue(dealerHand) == playersHandValue(playerHand):
-        print("Tie! No winner")
-
     db.write_cash_money(str(money))
     print(f"Money: {money}")
-    print()
     return money
 
 
 def printScore(playerHand, dealerHand):
-    playerPoints = dealersHandValue(playerHand)
-    dealerPoints = dealersHandValue(dealerHand)
+    playerPoints = playersHandValue(playerHand)
+    dealerPoints = handValue(dealerHand)
     if playersHandValue(playerHand) > 21:
         playerPoints = "BUST"
-    if dealersHandValue(dealerHand) > 21:
+    if handValue(dealerHand) > 21:
         dealerPoints = "BUST"
-    print(f"{'YOUR POINTS: ':{'20'}}{playerPoints:{'<10'}}")
     print(f"{'DEALERS POINTS: ':{'20'}}{dealerPoints:{'<10'}}")
+    print(f"{'YOUR POINTS: ':{'20'}}{playerPoints:{'<10'}}")
 
 
 def player_bet(money):
@@ -67,7 +70,7 @@ def player_bet(money):
 
 def dealerAce(hand):
     index = -1
-    if hand.count("A") < 1 and dealersHandValue(hand) > 21:
+    if hand.count("A") < 1 and handValue(hand) > 21:
         for count, card in enumerate(hand):
             if card[0].upper() == "A":
                 hand[count-1][2] = "1"
@@ -81,7 +84,7 @@ def dealerAce(hand):
     return hand
 
 
-def dealersHandValue(hand):
+def handValue(hand):
     value = 0
     for card in hand:
         value += int(card[2])
@@ -89,10 +92,11 @@ def dealersHandValue(hand):
 
 
 def playersHandValue(hand):
-    while dealersHandValue(hand) > 21:
-        if '11' in hand:
-            i = hand.index("11")
-            hand[i][2] = "1"
+    for count, card in enumerate(hand):
+        if '11' in card:
+            while handValue(hand) > 21:
+                i = count
+                hand[i][2] = "1"
     value = 0
     for card in hand:
         value += int(card[2])
@@ -108,40 +112,46 @@ def showHand(hand):
 
 def dealerTurn(deck, playerHand, dealerHand):
     printTable(playerHand, dealerHand)
-    if dealersHandValue(dealerHand) > playersHandValue(playerHand):
+    if handValue(dealerHand) > playersHandValue(playerHand):
         return 'd'
-    while dealersHandValue(dealerHand) < 17 or dealersHandValue(dealerHand) < playersHandValue(playerHand):
+    while handValue(dealerHand) < 17 or handValue(dealerHand) < playersHandValue(playerHand):
         newCard = deck.pop()
         dealerHand.append(newCard)
         if 'A' in newCard:
             dealerAce(dealerHand)
         printTable(playerHand, dealerHand)
-    if dealersHandValue(dealerHand) > 21:
+    if handValue(dealerHand) > 21:
         return 'p'
-    if dealersHandValue(dealerHand) > playersHandValue(playerHand):
+    if handValue(dealerHand) > playersHandValue(playerHand):
         return 'd'
-    if dealersHandValue(dealerHand) == playersHandValue(playerHand):
+    if handValue(dealerHand) == playersHandValue(playerHand):
         return 't'
 
 
 def playersTurn(deck, playerHand, dealerHand):
     play = input("Would you like to hit or stand?   ")
-    while play == "hit":
+    while play.lower() == "hit":
         card = deck.pop()
         playerHand.append(card)
-        printTable(playerHand, dealerHand)
+        printTable(playerHand, dealerHand[1:])
         if playersHandValue(playerHand) == 21:
             print("21 points!")
             break
         elif playersHandValue(playerHand) > 21:
             print("You're bust!")
-            return "d"
+            return 'd'
         else:
             time.sleep(1)
         play = input("Would you like to hit or stand?   ")
-    if dealersHandValue(dealerHand) > playersHandValue(playerHand):
+        if play.lower() == "stand":
+            break
+        elif play.lower() != "hit":
+            print("Invalid entry. Type 'hit' or 'stand'")
+            play = input("Would you like to hit or stand?   ")
+            continue
+    if handValue(dealerHand) > playersHandValue(playerHand):
         return 'd'
-    elif dealersHandValue(dealerHand) == playersHandValue(playerHand):
+    elif handValue(dealerHand) == playersHandValue(playerHand):
         return 't'
     else:
         return 'n'
@@ -151,18 +161,17 @@ def startGame(deck, playerHand, dealerHand):
     for x in range(2):
         card = deck.pop()
         playerHand.append(card)
-        printTable(playerHand, dealerHand)
         card = deck.pop()
         dealerHand.append(card)
         if 'A' in card:
             dealerAce(dealerHand)
-        printTable(playerHand, dealerHand)
+        printTable(playerHand, dealerHand[1:])
     if playersHandValue(playerHand) == 21:
-        if dealersHandValue(dealerHand) == 21:
+        if handValue(dealerHand) == 21:
             return 't'
         else:
             return "b"
-    elif dealersHandValue(dealerHand) == 21:
+    elif handValue(dealerHand) == 21:
         return "d"
     else:
         return "n"
@@ -188,8 +197,10 @@ def newDeck():
 
 
 def printTable(playerHand, dealerHand):
-    print()
-    print(f"DEALER'S SHOW CARD:\n{showHand(dealerHand[1:])}")
+    if len(dealerHand) == 0:
+        print(f"DEALER'S SHOW CARD: \n??\n")
+    else:
+        print(f"DEALER'S SHOW CARD:\n{showHand(dealerHand)}")
     print(f"YOUR CARDS:\n{showHand(playerHand)}")
     time.sleep(2)
 
