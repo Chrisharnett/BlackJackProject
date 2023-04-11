@@ -3,7 +3,7 @@
 import db
 import random
 import time
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 from decimal import ROUND_HALF_UP
 
 
@@ -35,9 +35,9 @@ def endGame(playerHand, dealerHand, bet, money, winner):
 
 
 def printScore(playerHand, dealerHand):
-    playerPoints = playersHandValue(playerHand)
+    playerPoints = handValue(playerHand)
     dealerPoints = handValue(dealerHand)
-    if playersHandValue(playerHand) > 21:
+    if handValue(playerHand) > 21:
         playerPoints = "BUST"
     if handValue(dealerHand) > 21:
         dealerPoints = "BUST"
@@ -60,11 +60,11 @@ def player_bet(money):
             bet_amount = Decimal(input("Bet Amount: "))
             if bet_amount > money:
                 print("You don't have enough money, try again.")
-            elif 5 > bet_amount > 1000:
-                raise ValueError
-            else:
+            elif 5 < bet_amount < 1000:
                 return bet_amount, money
-        except ValueError:
+            else:
+                raise ValueError
+        except (ValueError, DecimalException):
             print("Invalid bet. Bets must be between 5 and 1000.")
 
 
@@ -91,16 +91,17 @@ def handValue(hand):
     return value
 
 
-def playersHandValue(hand):
-    for count, card in enumerate(hand):
-        if '11' in card:
-            while handValue(hand) > 21:
-                i = count
-                hand[i][2] = "1"
-    value = 0
-    for card in hand:
-        value += int(card[2])
-    return value
+def playerAce(card):
+    while True:
+        aceValue = input("Would you like to make this ace 11 or 1?")
+        if aceValue == '1':
+            card[2] = aceValue
+            break
+        elif aceValue == '11':
+            break
+        else:
+            print("Invalid input, try again")
+    return card
 
 
 def showHand(hand):
@@ -112,9 +113,9 @@ def showHand(hand):
 
 def dealerTurn(deck, playerHand, dealerHand):
     printTable(playerHand, dealerHand)
-    if handValue(dealerHand) > playersHandValue(playerHand):
+    if handValue(dealerHand) > handValue(playerHand):
         return 'd'
-    while handValue(dealerHand) < 17 or handValue(dealerHand) < playersHandValue(playerHand):
+    while handValue(dealerHand) < 17 or handValue(dealerHand) < handValue(playerHand):
         newCard = deck.pop()
         dealerHand.append(newCard)
         if 'A' in newCard:
@@ -122,36 +123,39 @@ def dealerTurn(deck, playerHand, dealerHand):
         printTable(playerHand, dealerHand)
     if handValue(dealerHand) > 21:
         return 'p'
-    if handValue(dealerHand) > playersHandValue(playerHand):
+    if handValue(dealerHand) > handValue(playerHand):
         return 'd'
-    if handValue(dealerHand) == playersHandValue(playerHand):
+    if handValue(dealerHand) == handValue(playerHand):
         return 't'
 
 
 def playersTurn(deck, playerHand, dealerHand):
-    play = input("Would you like to hit or stand?   ")
-    while play.lower() == "hit":
-        card = deck.pop()
-        playerHand.append(card)
-        printTable(playerHand, dealerHand[1:])
-        if playersHandValue(playerHand) == 21:
-            print("21 points!")
-            break
-        elif playersHandValue(playerHand) > 21:
-            print("You're bust!")
-            return 'd'
-        else:
-            time.sleep(1)
+    while True:
         play = input("Would you like to hit or stand?   ")
         if play.lower() == "stand":
             break
-        elif play.lower() != "hit":
+        elif play.lower() == "hit":
+            card = deck.pop()
+            if 'A' in card:
+                if handValue(playerHand) > 10:
+                    card[2] = 1
+                else:
+                    card = playerAce(card)
+            playerHand.append(card)
+            printTable(playerHand, dealerHand[1:])
+            if handValue(playerHand) == 21:
+                print("21 points!")
+                break
+            elif handValue(playerHand) > 21:
+                print("You're bust!")
+                return 'd'
+            else:
+                time.sleep(1)
+        else:
             print("Invalid entry. Type 'hit' or 'stand'")
-            play = input("Would you like to hit or stand?   ")
-            continue
-    if handValue(dealerHand) > playersHandValue(playerHand):
+    if handValue(dealerHand) > handValue(playerHand):
         return 'd'
-    elif handValue(dealerHand) == playersHandValue(playerHand):
+    elif handValue(dealerHand) == handValue(playerHand):
         return 't'
     else:
         return 'n'
@@ -160,13 +164,18 @@ def playersTurn(deck, playerHand, dealerHand):
 def startGame(deck, playerHand, dealerHand):
     for x in range(2):
         card = deck.pop()
+        if 'A' in card:
+            if handValue(playerHand) > 10:
+                card[2] = 1
+            else:
+                card = playerAce(card)
         playerHand.append(card)
         card = deck.pop()
         dealerHand.append(card)
         if 'A' in card:
             dealerAce(dealerHand)
         printTable(playerHand, dealerHand[1:])
-    if playersHandValue(playerHand) == 21:
+    if handValue(playerHand) == 21:
         if handValue(dealerHand) == 21:
             return 't'
         else:
@@ -210,7 +219,6 @@ def main():
     print("Blackjack payout is 3:2")
     money = Decimal(db.load_money_from_disk())
 
-    # bet = 0
     play_again = 'y'
     while play_again == 'y':
         bet, money = player_bet(money)
@@ -220,6 +228,7 @@ def main():
         playerHand = []
         dealerHand = []
 
+        # variable winner tracks whether conditions for winning the game are met along the way. n = no winner
         winner = "n"
         while winner == "n":
             winner = startGame(deck, playerHand, dealerHand)
