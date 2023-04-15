@@ -3,8 +3,6 @@
 import db
 import random
 import time
-from decimal import Decimal, DecimalException
-from decimal import ROUND_HALF_UP
 
 
 def endGame(playerHand, dealerHand, bet, money, winner):
@@ -13,24 +11,25 @@ def endGame(playerHand, dealerHand, bet, money, winner):
     printTable(playerHand, dealerHand)
     printScore(playerHand, dealerHand)
     time.sleep(1)
-    bet = bet.quantize(Decimal("1.00"), ROUND_HALF_UP)
+    result = ""
     if winner == 'b':
-        bet = (bet * Decimal(1.5)).quantize(Decimal("1.00"), ROUND_HALF_UP)
+        bet = (bet * 1.5)
         money += bet
-        print("BlackJack!")
-        print(f"Amazing! You win {bet}")
+        result += "BlackJack! "
+        result += f"Amazing! You win {bet:.2f} "
     elif winner == 'd':
         money -= bet
         if handValue(dealerHand) == 21:
-            print("Dealer BlackJack!")
-        print("Sorry. You Lose")
+            result += "Dealer BlackJack! "
+        result += "Sorry. You Lose "
     elif winner == 't':
-        print("Tie! No winner")
+        result += "Tie! No winner "
     elif winner == 'p':
-        print("Congratulations, you win!")
+        result += "Congratulations, you win! "
         money += bet
-    db.write_cash_money(str(money))
-    print(f"Money: {money}")
+    db.writeCashMoney(str(money))
+    print(result)
+    print(f"Money: {money:.2f}")
     return money
 
 
@@ -43,37 +42,40 @@ def printScore(playerHand, dealerHand):
         dealerPoints = "BUST"
     print(f"{'DEALERS POINTS: ':{'20'}}{dealerPoints:{'<10'}}")
     print(f"{'YOUR POINTS: ':{'20'}}{playerPoints:{'<10'}}")
-
-
-def player_bet(money):
     print()
-    print(f"Money: {money}")
+
+
+def playerBet(money):
+    print()
+    print(f"Money: {money:.2f}")
     if money < 5:
-        more_money = input("You're out of money. Would you like to buy more chips (y/n)?:  ")
-        if more_money.lower() == "y":
+        moreMoney = input("You're out of money. Would you like to buy more chips (y/n)?:  ")
+        if moreMoney.lower() == "y":
             money = 100
-            print(f"Money: {money}")
+            print(f"Money: {money:.2f}")
         else:
-            return
+            return 0, money
     while True:
         try:
-            bet_amount = Decimal(input("Bet Amount: "))
-            if bet_amount > money:
+            betAmount = float(input("Bet Amount: "))
+            if betAmount > money:
                 print("You don't have enough money, try again.")
-            elif 5 < bet_amount < 1000:
-                return bet_amount, money
+            elif 5 < betAmount < 1000:
+                return betAmount, money
             else:
                 raise ValueError
-        except (ValueError, DecimalException):
-            print("Invalid bet. Bets must be between 5 and 1000.")
+        except ValueError:
+            print("Invalid bet. Bets must be a number between 5 and 1000.")
 
 
 def dealerAce(hand):
     index = -1
+    # Make the first ace 11 unless it busts the hand.
     if hand.count("A") < 1 and handValue(hand) > 21:
         for count, card in enumerate(hand):
             if card[0].upper() == "A":
                 hand[count-1][2] = "1"
+    # Make all subsequent aces worth 11
     if hand.count("A") >= 1:
         for count, card in enumerate(hand):
             indices = []
@@ -93,14 +95,18 @@ def handValue(hand):
 
 def playerAce(card):
     while True:
-        aceValue = input("Would you like to make this ace 11 or 1?")
-        if aceValue == '1':
-            card[2] = aceValue
-            break
-        elif aceValue == '11':
-            break
-        else:
-            print("Invalid input, try again")
+        print(f"{card[0]}{card[1]}")
+        try:
+            aceValue = input("An Ace! Would you like to make this ace 11 or 1?")
+            if aceValue == '1':
+                card[2] = aceValue
+                break
+            elif aceValue == '11':
+                break
+            else:
+                print("Invalid input, try again")
+        except ValueError:
+            print("Invalid selection. Aces can only be 1 or 11.")
     return card
 
 
@@ -123,9 +129,9 @@ def dealerTurn(deck, playerHand, dealerHand):
         printTable(playerHand, dealerHand)
     if handValue(dealerHand) > 21:
         return 'p'
-    if handValue(dealerHand) > handValue(playerHand):
+    elif handValue(dealerHand) > handValue(playerHand):
         return 'd'
-    if handValue(dealerHand) == handValue(playerHand):
+    elif handValue(dealerHand) == handValue(playerHand):
         return 't'
 
 
@@ -187,6 +193,7 @@ def startGame(deck, playerHand, dealerHand):
 
 
 def newDeck():
+    # Create and shuffle a new deck
     print("Shuffling the deck.")
     time.sleep(1)
     suits = ["\u2663", "\u2660", "\u2661", "\u2662"]
@@ -201,15 +208,15 @@ def newDeck():
             else:
                 value = number
             deck.append([number, suit, value])
-        random.shuffle(deck)
+    random.shuffle(deck)
     return deck
 
 
 def printTable(playerHand, dealerHand):
-    if len(dealerHand) == 0:
-        print(f"DEALER'S SHOW CARD: \n??\n")
+    if len(dealerHand) <= 1:
+        print(f"DEALER'S SHOW CARD: \n?? {showHand(dealerHand)}\n")
     else:
-        print(f"DEALER'S SHOW CARD:\n{showHand(dealerHand)}")
+        print(f"DEALER'S CARDs:\n{showHand(dealerHand)}")
     print(f"YOUR CARDS:\n{showHand(playerHand)}")
     time.sleep(2)
 
@@ -217,17 +224,15 @@ def printTable(playerHand, dealerHand):
 def main():
     print("BLACKJACK!")
     print("Blackjack payout is 3:2")
-    money = Decimal(db.load_money_from_disk())
-
-    play_again = 'y'
-    while play_again == 'y':
-        bet, money = player_bet(money)
+    money = float(db.loadMoneyFromDisk())
+    playAgain = 'y'
+    while playAgain == 'y':
+        bet, money = playerBet(money)
         if money < 5:
             break
         deck = newDeck()
         playerHand = []
         dealerHand = []
-
         # variable winner tracks whether conditions for winning the game are met along the way. n = no winner
         winner = "n"
         while winner == "n":
@@ -239,11 +244,10 @@ def main():
                 break
             winner = dealerTurn(deck, playerHand, dealerHand)
         money = endGame(playerHand, dealerHand, bet, money, winner)
-
         print()
-        time.sleep(2)
-        play_again = input("Play again(y/n):  ")
-
+        time.sleep(1)
+        playAgain = input("Play again(y/n):  ")
+    print()
     print("Come Back soon!")
     print("Goodbye")
 

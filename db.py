@@ -3,7 +3,7 @@ import sys
 FILENAME = "money.txt"
 
 
-def load_money_from_disk():
+def loadMoneyFromDisk():
     money = 0
     try:
         with open(FILENAME) as file:
@@ -17,7 +17,7 @@ def load_money_from_disk():
         sys.exit(1)
 
 
-def write_cash_money(money):
+def writeCashMoney(money):
     try:
         with open(FILENAME, "w") as file:
             file.write(money)
